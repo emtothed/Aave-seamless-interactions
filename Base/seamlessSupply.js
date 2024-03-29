@@ -24,7 +24,7 @@ const wrappedTokenGatewayV3Address =
 const WETHAddress = "0x4200000000000000000000000000000000000006";
 const usdcAddress = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const cbETHAddress = "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22";
-const wstETH = "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452";
+const wstETH = "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452"; //**** CHECK UNISWAP POOL LIQUIDITY BEFORE SWAPPING THIS TOKEN ****
 const daiAddress = "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb";
 
 // Conract objects
@@ -44,11 +44,8 @@ const swapRouter = new ethers.Contract(
   wallet
 );
 
-// Swap ETH for token using uniswapV3  //unchecked
+// Swap ETH for token using uniswapV3
 async function swapETHForToken(swapAmount, token) {
-  const network = await provider.getNetwork();
-  console.log(`Swaping on : ${network.name} chain`);
-
   const params = {
     tokenIn: WETHAddress,
     tokenOut: token.address,
@@ -63,22 +60,25 @@ async function swapETHForToken(swapAmount, token) {
   console.log("=============================================================");
   const tx = await swapRouter.exactInputSingle(params, {
     value: ethers.utils.parseEther(swapAmount.toString()),
+    gasPrice: (await provider.getGasPrice()).mul(105).div(100),
   });
   console.log(`Swap transaction hash: ${tx.hash}`);
   const receipt = await tx.wait();
   console.log(`Swap transaction confirmed in block ${receipt.blockNumber}`);
 
   const logs = receipt.events.filter((e) => e.address === token.address);
-  const amountOut = parseInt(logs[0].data, 16) / 10 ** token.decimals;
+  const amountOut = BigInt(parseInt(logs[0].data, 16));
   console.log(
-    ` --- Swaped ${swapAmount} ETH for ${amountOut} ${token.symbol} ----`
+    ` --- Swaped ${swapAmount} ETH for ${
+      Number(amountOut) / 10 ** token.decimals
+    } ${token.symbol} ----`
   );
   return amountOut;
 }
 
 //swapETHForToken(0.0001, usdcAddress);
 
-// swap ETH for token and supply the token in Seamless //unchecked
+// swap ETH for token and supply the token in Seamless
 async function supply(ethAmount, tokenAddress) {
   const poolProxyAddress = await poolAddressProviderContract.getPool();
   const poolContract = new ethers.Contract(poolProxyAddress, poolAbi, wallet);
@@ -90,15 +90,18 @@ async function supply(ethAmount, tokenAddress) {
     symbol: await tokenContract.symbol(),
   };
 
-  const amountOut = await swapETHForToken(ethAmount, token);
-  const supplyAmount = ethers.utils.parseUnits(
-    amountOut.toString(),
-    token.decimals
-  );
+  // swapp eth with token
+  const supplyAmount = await swapETHForToken(ethAmount, token);
 
   // Approving Seamless pool
   console.log("=============================================================");
-  const approveTx = await tokenContract.approve(poolProxyAddress, supplyAmount);
+  const approveTx = await tokenContract.approve(
+    poolProxyAddress,
+    supplyAmount,
+    {
+      gasPrice: (await provider.getGasPrice()).mul(105).div(100),
+    }
+  );
 
   console.log(`Approve transaction hash: ${approveTx.hash}`);
   approveReceipt = await approveTx.wait();
@@ -112,7 +115,10 @@ async function supply(ethAmount, tokenAddress) {
     tokenAddress,
     supplyAmount,
     wallet.address,
-    0
+    0,
+    {
+      gasPrice: (await provider.getGasPrice()).mul(105).div(100),
+    }
   );
   console.log(`Supply transaction hash: ${supplyTx.hash}`);
   supplyReceipt = await supplyTx.wait();
@@ -132,6 +138,7 @@ async function supplyEth(amount) {
     0,
     {
       value: ethAmount,
+      gasPrice: (await provider.getGasPrice()).mul(105).div(100),
     }
   );
   console.log(`ETH supply transaction hash: ${tx.hash}`);
@@ -141,8 +148,8 @@ async function supplyEth(amount) {
   );
 }
 
-// Swap 0.00001 ETH to token and supply all of the token in Aave
-//supply(0.00001, usdcAddress).catch(console.error);
+// Swap 0.00001 ETH to DAI and supply all of the DAI in Seamless
+//supply(0.000001, wstETH).catch(console.error);
 
 // Supply 0.00001 ETH in Seamless
-//supplyEth(0.00001).catch(console.error);
+//supplyEth(0.000001).catch(console.error);

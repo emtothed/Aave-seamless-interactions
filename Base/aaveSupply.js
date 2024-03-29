@@ -23,7 +23,6 @@ const wrappedTokenGatewayV3Address =
   "0x8be473dCfA93132658821E67CbEB684ec8Ea2E74";
 
 // Conract objects
-const usdcContract = new ethers.Contract(usdcAddress, erc20Abi, wallet);
 const poolAddressProviderContract = new ethers.Contract(
   poolAddressProviderAddress,
   poolAddressProviderABI,
@@ -40,14 +39,11 @@ const swapRouter = new ethers.Contract(
   wallet
 );
 
-// Swap ETH for USDC using uniswapV3
-async function swapETHForToken(swapAmount, tokenAddress) {
-  const network = await provider.getNetwork();
-  console.log(`Swaping on : ${network.name} chain`);
-
+// Swap ETH for token using uniswapV3
+async function swapETHForToken(swapAmount, token) {
   const params = {
     tokenIn: WETHAddress,
-    tokenOut: tokenAddress,
+    tokenOut: token.address,
     fee: 3000,
     recipient: wallet.address,
     deadline: Math.floor(Date.now() / 1000 + 60 * 10), // 10 minutes
@@ -59,31 +55,48 @@ async function swapETHForToken(swapAmount, tokenAddress) {
   console.log("=============================================================");
   const tx = await swapRouter.exactInputSingle(params, {
     value: ethers.utils.parseEther(swapAmount.toString()),
+    gasPrice: (await provider.getGasPrice()).mul(105).div(100),
   });
   console.log(`Swap transaction hash: ${tx.hash}`);
   const receipt = await tx.wait();
   console.log(`Swap transaction confirmed in block ${receipt.blockNumber}`);
 
-  const logs = receipt.events.filter((e) => e.address === usdcAddress);
-  const amountOut = parseInt(logs[0].data, 16) / 10 ** 6; //---------------check
-  console.log(` --- Swaped ${swapAmount} ETH for ${amountOut} USDC ----`);
+  const logs = receipt.events.filter((e) => e.address === token.address);
+  const amountOut = BigInt(parseInt(logs[0].data, 16));
+  console.log(
+    ` --- Swaped ${swapAmount} ETH for ${
+      Number(amountOut) / 10 ** token.decimals
+    } ${token.symbol} ----`
+  );
   return amountOut;
 }
 
 //swapETHForToken(0.0001, usdcAddress);
 
-// swap ETH for USDC and supply the USDC in Aave
-async function supply(ethAmount) {
-  const amountOut = await swapETHForToken(ethAmount, usdcAddress);
-
+// swap ETH for token and supply the token in Aave
+async function supply(ethAmount, tokenAddress) {
   const poolProxyAddress = await poolAddressProviderContract.getPool();
   const poolContract = new ethers.Contract(poolProxyAddress, poolAbi, wallet);
-  const decimals = await usdcContract.decimals();
-  const supplyAmount = ethers.utils.parseUnits(amountOut.toString(), decimals);
+
+  const tokenContract = new ethers.Contract(tokenAddress, erc20Abi, wallet);
+  const token = {
+    address: tokenAddress,
+    decimals: await tokenContract.decimals(),
+    symbol: await tokenContract.symbol(),
+  };
+
+  // swapp eth with token
+  const supplyAmount = await swapETHForToken(ethAmount, token);
 
   // Approving Aave pool
   console.log("=============================================================");
-  const approveTx = await usdcContract.approve(poolProxyAddress, supplyAmount);
+  const approveTx = await tokenContract.approve(
+    poolProxyAddress,
+    supplyAmount,
+    {
+      gasPrice: (await provider.getGasPrice()).mul(105).div(100),
+    }
+  );
 
   console.log(`Approve transaction hash: ${approveTx.hash}`);
   approveReceipt = await approveTx.wait();
@@ -91,13 +104,16 @@ async function supply(ethAmount) {
     `Approve transaction confirmed in block ${approveReceipt.blockNumber}`
   );
 
-  // Supplying USDC
+  // Supplying token
   console.log("=============================================================");
   const supplyTx = await poolContract.supply(
-    usdcAddress,
+    tokenAddress,
     supplyAmount,
     wallet.address,
-    0
+    0,
+    {
+      gasPrice: (await provider.getGasPrice()).mul(105).div(100),
+    }
   );
   console.log(`Supply transaction hash: ${supplyTx.hash}`);
   supplyReceipt = await supplyTx.wait();
@@ -111,15 +127,15 @@ async function supplyEth(amount) {
   const ethAmount = ethers.utils.parseEther(amount.toString());
   const poolProxyAddress = await poolAddressProviderContract.getPool();
 
-  const tx = await wtGatewayContract.callStatic.depositETH(
+  const tx = await wtGatewayContract.depositETH(
     poolProxyAddress,
     wallet.address,
     0,
     {
       value: ethAmount,
+      gasPrice: (await provider.getGasPrice()).mul(105).div(100),
     }
   );
-  console.log(tx);
   console.log(`ETH supply transaction hash: ${tx.hash}`);
   receipt = await tx.wait();
   console.log(
@@ -127,8 +143,8 @@ async function supplyEth(amount) {
   );
 }
 
-// Swap 0.1 ETH to USDC and supply all of the USDC in Aave
-//supply(0.00001).catch(console.error);
+// Swap 0.00001 ETH to USDC and supply all of the DAI in Aave
+supply(0.000001, usdcAddress).catch(console.error);
 
-// Supply 0.1 ETH in Aave
-//supplyEth(0.00001).catch(console.error);
+// Supply 0.00001 ETH in Aave
+//supplyEth(0.000001).catch(console.error);
