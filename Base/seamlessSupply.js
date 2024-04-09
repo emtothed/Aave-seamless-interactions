@@ -3,7 +3,7 @@ require("dotenv").config();
 const provider = new ethers.providers.JsonRpcProvider(process.env.BASE_RPC_URL);
 const wallet = new ethers.Wallet(process.env.BASE_PRIVATE_KEY, provider);
 const SwapRouterABI = require("./abi/baseRouterABI.json"); // Router ABI for base
-const wrappedTokenGatewayV3ABI = require("./abi/wrappedTokenGatewayV3ABI.json"); //base
+const wrappedTokenGatewayV3ABI = require("./abi/baseWrappedTokenGatewayV3ABI.json"); //base
 const {
   abi: poolAddressProviderABI,
 } = require("@aave/core-v3/artifacts/contracts/protocol/configuration/PoolAddressesProvider.sol/PoolAddressesProvider.json");
@@ -21,7 +21,7 @@ const wrappedTokenGatewayV3Address =
   "0xaeeB3898edE6a6e86864688383E211132BAa1Af3";
 
 // Token addresses based on seamless protocol UI
-const WETHAddress = "0x4200000000000000000000000000000000000006";
+const wethAddress = "0x4200000000000000000000000000000000000006";
 const usdcAddress = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const cbETHAddress = "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22";
 const wstETH = "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452"; //**** CHECK UNISWAP POOL LIQUIDITY BEFORE SWAPPING THIS TOKEN ****
@@ -47,7 +47,7 @@ const swapRouter = new ethers.Contract(
 // Swap ETH for token using uniswapV3
 async function swapETHForToken(swapAmount, token) {
   const params = {
-    tokenIn: WETHAddress,
+    tokenIn: wethAddress,
     tokenOut: token.address,
     fee: 3000,
     recipient: wallet.address,

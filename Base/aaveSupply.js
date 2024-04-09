@@ -3,7 +3,7 @@ require("dotenv").config();
 const provider = new ethers.providers.JsonRpcProvider(process.env.BASE_RPC_URL);
 const wallet = new ethers.Wallet(process.env.BASE_PRIVATE_KEY, provider);
 const SwapRouterABI = require("./abi/baseRouterABI.json"); // Router ABI for base
-const wrappedTokenGatewayV3ABI = require("./abi/wrappedTokenGatewayV3ABI.json"); //base
+const wrappedTokenGatewayV3ABI = require("./abi/baseWrappedTokenGatewayV3ABI.json"); //base
 const {
   abi: poolAddressProviderABI,
 } = require("@aave/core-v3/artifacts/contracts/protocol/configuration/PoolAddressesProvider.sol/PoolAddressesProvider.json");

@@ -20,7 +20,7 @@ const {
 const swapRouterAddress = "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E";
 const poolAddressProviderAddress = "0x012bAC54348C0E635dCAc9D5FB99f06F24136C9A";
 const usdcAddress = "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8";
-const WETHAddress = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14";
+const wethAddress = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14";
 const wrappedTokenGatewayV3Address =
   "0x387d311e47e80b498169e6fb51d3193167d89F7D";
 
@@ -48,7 +48,7 @@ async function swapETHForToken(swapAmount, tokenAddress) {
   console.log(`Swaping on : ${network.name} chain`);
 
   const params = {
-    tokenIn: WETHAddress,
+    tokenIn: wethAddress,
     tokenOut: tokenAddress,
     fee: 3000,
     recipient: wallet.address,
